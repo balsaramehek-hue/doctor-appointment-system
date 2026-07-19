@@ -1,23 +1,22 @@
 import cors from 'cors'
 
-/**
- * CORS configuration. Allows the frontend (Vite dev server / production)
- * to call the API. Adjust CLIENT_URL in .env for different environments.
- */
 const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
+  process.env.CLIENT_URL,
   'http://localhost:5173',
   'http://localhost:4173',
+  'https://smart-healthcare-hospital.netlify.app',
 ]
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, postman)
     if (!origin) return callback(null, true)
+
     if (allowedOrigins.includes(origin)) {
       return callback(null, true)
     }
-    return callback(new Error('Not allowed by CORS'))
+
+    console.log("Blocked Origin:", origin)
+    return callback(new Error("Not allowed by CORS"))
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
