@@ -1,19 +1,38 @@
 import axios from 'axios'
 
-// Centralized API client. Every request goes through this instance.
-// The base URL is provided via VITE_API_URL (see .env). Cookies are sent
-// with every request so the backend's httpOnly JWT cookie is honored.
+const TOKEN_KEY = 'medicare_token'
+
+export const getStoredToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+export const setStoredToken = (token) => {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export const clearStoredToken = () => setStoredToken('')
+
+// Centralized API client. Base URL comes from VITE_API_URL (Netlify env / .env).
+// Sends cookies when available, and Authorization Bearer as a cross-origin fallback
+// (Netlify frontend + Render API are different sites).
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5002/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 30000,
 })
 
-// Friendly, user-facing messages mapped to HTTP status codes.
-// Used when the backend does not provide a specific message.
 const STATUS_MESSAGES = {
   400: 'Invalid request. Please check the information you provided.',
   401: 'Your session has expired or the credentials are invalid. Please log in again.',
@@ -25,15 +44,27 @@ const STATUS_MESSAGES = {
   500: 'A server error occurred. Please try again later.',
 }
 
-// Centralized error normalization. Throws a consistent error object so
-// callers can rely on `err.message` and `err.status` regardless of source.
+API.interceptors.request.use((config) => {
+  const token = getStoredToken()
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  // Let the browser set multipart boundary for FormData
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type']
+    }
+  }
+  return config
+})
+
 API.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status
     const data = error.response?.data
 
-    // Network / timeout errors have no response.
     if (!error.response) {
       const netErr = new Error(
         'Network connection lost. Please check your internet connection and try again.'
@@ -44,7 +75,6 @@ API.interceptors.response.use(
       return Promise.reject(netErr)
     }
 
-    // Backend returns { success: false, message, errors }.
     const message =
       data?.message ||
       (typeof data === 'string' ? data : null) ||

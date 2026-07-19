@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authService } from '../services/apiService'
+import { setStoredToken, clearStoredToken } from '../services/api'
 import { useToast } from '../components/Toast'
 
 const AuthContext = createContext(null)
@@ -9,8 +10,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // On mount, try to restore the session from the backend using the
-  // httpOnly cookie. If it fails (no session / expired), user stays null.
   useEffect(() => {
     let active = true
     const restore = async () => {
@@ -18,7 +17,7 @@ export function AuthProvider({ children }) {
         const res = await authService.getMe()
         if (active && res?.success) setUser(res.data.user)
       } catch {
-        // Not authenticated — ignore.
+        clearStoredToken()
       } finally {
         if (active) setLoading(false)
       }
@@ -29,8 +28,6 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Extract a user-friendly message from a normalized Axios error.
-  // Prefers the first field-level validation message when present.
   const errorMessage = (err, fallback) => {
     if (err?.errors?.length) {
       return err.errors.map((e) => e.message).join(' ')
@@ -42,6 +39,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await authService.login({ email, password })
       if (res?.success) {
+        if (res.data?.token) setStoredToken(res.data.token)
         setUser(res.data.user)
         return { success: true, role: res.data.user.role }
       }
@@ -55,6 +53,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await authService.adminLogin({ email, password })
       if (res?.success) {
+        if (res.data?.token) setStoredToken(res.data.token)
         setUser(res.data.user)
         return { success: true, role: res.data.user.role }
       }
@@ -68,6 +67,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await authService.register(data)
       if (res?.success) {
+        if (res.data?.token) setStoredToken(res.data.token)
         setUser(res.data.user)
         return { success: true, role: res.data.user.role }
       }
@@ -83,6 +83,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Even if the request fails, clear local state.
     }
+    clearStoredToken()
     setUser(null)
     toast.success('Logged out successfully')
   }, [toast])

@@ -27,8 +27,16 @@ const app = express()
 
 /* ----------------------------- MIDDLEWARE ----------------------------- */
 
-// Security headers
-app.use(helmet())
+// Render / Cloudflare sit behind a proxy — needed for secure cookies & rate limits
+app.set('trust proxy', 1)
+
+// Security headers (relax CORP so Netlify can call the API / load uploads)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+)
 
 // CORS
 app.use(corsOptions)

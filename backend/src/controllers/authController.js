@@ -18,13 +18,15 @@ const buildUserPayload = (user) => ({
   role: user.role,
 })
 
-// Attach JWT as cookie + return in response
+// Attach JWT as cookie + return in response.
+// Cross-site (Netlify frontend → Render API) requires SameSite=None; Secure.
 const setAuthCookie = (res, token) => {
   const days = Number(process.env.JWT_COOKIE_EXPIRE) || 7
+  const isProd = process.env.NODE_ENV === 'production'
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: days * 24 * 60 * 60 * 1000,
   })
 }
@@ -85,7 +87,12 @@ export const login = async (req, res) => {
 
 // @route   POST /api/auth/logout
 export const logout = async (req, res) => {
-  res.clearCookie('token')
+  const isProd = process.env.NODE_ENV === 'production'
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+  })
   return sendSuccess(res, 'Logged out successfully')
 }
 
