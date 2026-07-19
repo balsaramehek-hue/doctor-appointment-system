@@ -21,11 +21,22 @@ export const setStoredToken = (token) => {
 
 export const clearStoredToken = () => setStoredToken('')
 
-// Centralized API client. Base URL comes from VITE_API_URL (Netlify env / .env).
-// Sends cookies when available, and Authorization Bearer as a cross-origin fallback
-// (Netlify frontend + Render API are different sites).
+/**
+ * Normalize API base URL so both of these work on Netlify:
+ *   https://xxx.onrender.com
+ *   https://xxx.onrender.com/api
+ */
+const resolveApiBase = () => {
+  const raw = (import.meta.env.VITE_API_URL || 'http://localhost:5002/api').trim()
+  const noTrailing = raw.replace(/\/+$/, '')
+  if (/\/api$/i.test(noTrailing)) return noTrailing
+  return `${noTrailing}/api`
+}
+
+const API_BASE = resolveApiBase()
+
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5002/api',
+  baseURL: API_BASE,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -50,7 +61,6 @@ API.interceptors.request.use((config) => {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
   }
-  // Let the browser set multipart boundary for FormData
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
     if (config.headers) {
       delete config.headers['Content-Type']

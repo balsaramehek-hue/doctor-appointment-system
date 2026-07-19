@@ -10,10 +10,8 @@ import API from './api'
 export const getImageUrl = (path) => {
   if (!path) return ''
   if (/^https?:\/\//.test(path)) return path
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5002/api').replace(
-    /\/api\/?$/,
-    ''
-  )
+  const raw = (import.meta.env.VITE_API_URL || 'http://localhost:5002/api').trim()
+  const base = raw.replace(/\/api\/?$/, '').replace(/\/+$/, '')
   return `${base}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
